@@ -1,13 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var rows, cols, boxes [9][10]bool
-
-func solveSudoku(board [][]int) bool {
-	emptyCells := findEmptyCells(board)
-	return backtrack(board, emptyCells, 0)
-}
 
 func findEmptyCells(board [][]int) [][2]int {
 	var emptyCells [][2]int
@@ -26,40 +23,68 @@ func findEmptyCells(board [][]int) [][2]int {
 	return emptyCells
 }
 
-func backtrack(board [][]int, emptyCells [][2]int, index int) bool {
-	if index == len(emptyCells) {
-		return true
-	}
+func boxIndex(row, col int) int {
+	return (row/3)*3 + col/3
+}
 
-	row, col := emptyCells[index][0], emptyCells[index][1]
-
+func getPossibleValues(row, col int) []int {
+	var possible []int
 	for num := 1; num <= 9; num++ {
-		if isValid(row, col, num) {
+		if !rows[row][num] && !cols[col][num] && !boxes[boxIndex(row, col)][num] {
+			possible = append(possible, num)
+		}
+	}
+	return possible
+}
+
+func updatePossibleValues(board [][]int, possibleValues map[[2]int][]int) {
+	for pos := range possibleValues {
+		row, col := pos[0], pos[1]
+		possibleValues[pos] = getPossibleValues(row, col)
+	}
+}
+
+func setSingleValues(board [][]int, possibleValues map[[2]int][]int) bool {
+	changed := false
+	for pos, values := range possibleValues {
+		if len(values) == 1 {
+			num := values[0]
+			row, col := pos[0], pos[1]
 			board[row][col] = num
 			rows[row][num] = true
 			cols[col][num] = true
 			boxes[boxIndex(row, col)][num] = true
+			delete(possibleValues, pos)
+			changed = true
+		}
+	}
+	return changed
+}
 
-			if backtrack(board, emptyCells, index+1) {
-				return true
-			}
+func solveSudoku(board [][]int) bool {
+	emptyCells := findEmptyCells(board)
+	possibleValues := make(map[[2]int][]int)
+	for _, cell := range emptyCells {
+		row, col := cell[0], cell[1]
+		possibleValues[cell] = getPossibleValues(row, col)
+	}
 
-			board[row][col] = 0
-			rows[row][num] = false
-			cols[col][num] = false
-			boxes[boxIndex(row, col)][num] = false
+	for {
+		updatePossibleValues(board, possibleValues)
+		if !setSingleValues(board, possibleValues) {
+			break
 		}
 	}
 
-	return false
-}
+	for i := 0; i < 9; i++ {
+		for j := 0; j < 9; j++ {
+			if board[i][j] == 0 {
+				return false
+			}
+		}
+	}
 
-func isValid(row, col, num int) bool {
-	return !rows[row][num] && !cols[col][num] && !boxes[boxIndex(row, col)][num]
-}
-
-func boxIndex(row, col int) int {
-	return (row/3)*3 + col/3
+	return true
 }
 
 func printBoard(board [][]int) {
@@ -87,6 +112,6 @@ func main() {
 	if solveSudoku(board) {
 		printBoard(board)
 	} else {
-		fmt.Println("there is no solution")
+		fmt.Println("Error: Sudoku could not be solved.")
 	}
 }
